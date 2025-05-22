@@ -1,0 +1,538 @@
++ SondrixLetter: Is Tween "Tween" playing
+-> SondrixLetter: Set position to ((π×sin(((Self.IID-3.5)×360)+Self.Rotation)×7+Self.Tween.Value("Tween"))+(35×(Self.IID-3.5))×sin(180+Self.Rotation), (π×cos(((Self.IID-3.5)×360)+Self.Rotation)×7+120)+(35×(Self.IID-3.5))×cos(180+Self.Rotation))
++ System: Every tick
+-> SondrixLetter: Set position to ((π×sin(((Self.IID-3.5)×360)+Self.Rotation)×7+212)+(5×(Self.IID-3.5)×sin(((Self.IID-3.5)×360)+Self.Rotation)×7), 120)
+-> SondrixLetter: Set Z elevation to (2×(Self.IID-3.5)×cos(Self.Rotation)×3.5)
+-> SondrixLetter: Set effect "Brightness" parameter 0 to 100+(4×(Self.IID-3.5)×cos(Self.Rotation)×3.5)
+
+[General Movement]
+    // Falling Check
+----+ Player_A_Physics: Is Falling_Check_Flag
+----+ Player_A_Physics: [X] Is Ground
+-----> Player_A_Physics: Set Falling_Check_Flag to False
+-----> Player_A_Physics: Set Y_Speed to Self.X_Speed × sin(Self.Current_Angle) ×-1
+-----> Player_A_Physics: Set X_Speed to Self.X_Speed × cos(Self.Current_Angle)
+
+----+ Player_A_Physics: [X] Is Ground
+-----> Player_A_Physics: Set Current_Angle to 0
+
+    // Air Movement
+----+ Player_A_Physics: [X] Is Ground
+-----> Player_A_Physics: Set X_Float to Self.X_Float + Self.X_Speed
+-----> Player_A_Physics: Set Y_Float to Self.Y_Float + Self.Y_Speed
+--------+ (no conditions)
+---------> Player_A_Physics: Set Y_Speed to Self.Y_Speed + Self.Y_Speed_Add
+
+    // Ground Movement
+----+ Player_A_Physics: Is Ground
+-----> Player_A_Physics: Set X_Float to Self.X_Float + cos(Self.Current_Angle) × Self.X_Speed
+-----> Player_A_Physics: Set Y_Float to Self.Y_Float - sin(Self.Current_Angle) × Self.X_Speed
+
+[General Physics]
+    // Limit the speed
+----+ System: Every tick
+-----> Player_A_Physics: Set X_Speed to clamp(Self.X_Speed, Self.X_Speed_Max×-2000, Self.X_Speed_Max×2000)
+-----> Player_A_Physics: Set Y_Speed to clamp(Self.Y_Speed, Self.Y_Speed_Max×-1, Self.Y_Speed_Max×1)
+
+----[Mask Detection Movement]
+        // Wall Collision
+--------+ System: Every tick
+---------> Function: Call "Player01_WallCollision" ()
+
+--------+ Function: On "Player01_WallCollision"
+------------+ System: Repeat int(abs(Player_A_Physics.X_Speed)+20) times
+-------------> Function: Call "Player01_MaskLeft" ()
+-------------> Function: Call "Player01_MaskRight" ()
+----------------+ Player_MaskRight: Is Collision
+-----------------> Player_A_Physics: Set X_Float to Self.X_Float - cos(Self.Current_Angle)
+-----------------> Player_A_Physics: Set Y_Float to Self.Y_Float + sin(Self.Current_Angle)
+
+----------------+ Player_MaskLeft: Is Collision
+-----------------> Player_A_Physics: Set X_Float to Self.X_Float + cos(Self.Current_Angle)
+-----------------> Player_A_Physics: Set Y_Float to Self.Y_Float - sin(Self.Current_Angle)
+
+        // Bottom Collision
+--------+ System: Every tick
+---------> Player_A_Physics: Set Landing_Flag to 0
+
+--------+ Player_A_Physics: Y_Speed ≥ 0.0
+---------> Function: Call "Player01_Landing" ()
+
+--------+ Function: On "Player01_Landing"
+---------> Function: Call "Player01_MaskBottom" ()
+------------+ Player_A_Physics: [X] Is Ground
+------------+ Player_MaskBottom: Is Collision
+-------------> Player_A_Physics: Set Ground to True
+-------------> Player_A_Physics: Set Landing_Flag to 1
+
+--------+ Player_A_Physics: Landing_Flag = 1
+---------> Function: Call "Player01_SlopeDown" ()
+---------> Function: Call "Player01_SlopeUp" ()
+
+        // Top Collision
+--------+ Player_A_Physics: Y_Speed < 0
+---------> Function: Call "Player01_TopCollision" ()
+
+--------+ Function: On "Player01_TopCollision"
+------------+ System: Repeat Player_A_Physics.Y_Speed_Max times
+-------------> Function: Call "Player01_MaskTop" ()
+----------------+ Player_MaskTop: Is Collision
+-----------------> Player_A_Physics: Set Y_Float to Self.Y_Float +1
+-----------------> Player_A_Physics: Set Y_Speed to 0
+
+----------------+ Player_MaskTop: [X] Is Collision
+-----------------> System: Stop loop
+
+----[Check Ground and Control Lock]
+--------+ System: Every tick
+---------> Function: Call "Player01_FallGround" ()
+
+--------+ Function: On "Player01_FallGround"
+---------> Function: Call "Player01_MaskMain" ()
+---------> Function: Call "Player01_MaskBottomDetector" ()
+------------+ Player_A_Physics: Is Ground
+------------+ Player_MaskBottomDetector: [X] Is Collision
+-------------> Player_A_Physics: Set Ground to False
+
+------------+ Player_A_Physics: Is Ground
+------------+ Player_A_Physics: Current_Angle ≥ 90
+------------+ Player_A_Physics: Current_Angle ≤ 270
+------------+ System: abs(Player_A_Physics.X_Speed) < 2.5
+-------------> Player_A_Physics: Set Falling_Check_Flag to True
+-------------> Player_A_Physics: Set Ground to False
+
+        // Control Lock
+--------+ Player_A_Physics: X_ControlLock > 0
+---------> Player_A_Physics: Set X_ControlLock to max(Self.X_ControlLock-1,0)
+
+--------+ Player_A_Physics: Is Ground
+--------+ Player_A_Physics: Current_Angle ≥ 45
+--------+ Player_A_Physics: Current_Angle ≤ 315
+--------+ System: abs(Player_A_Physics.X_Speed) < 2.5
+---------> Player_A_Physics: Set X_ControlLock to 30
+
+--------+ Player_MaskBottomDetector: Is overlapping Spikes
+---------> (no actions)
+
+----[Slopes]
+--------+ Player_A_Physics: Is Ground
+--------+ Player_MaskLeftLine: Is Collision
+--------+ Player_MaskRightLine: Is Collision
+---------> Function: Call "Player01_SlopeDown" ()
+---------> Function: Call "Player01_SlopeUp" ()
+
+--------+ Function: On "Player01_SlopeDown"
+------------+ System: Repeat Player_A_Physics.X_Speed_Max + int(abs(Player_A_Physics.X_Speed)+1) times
+-------------> Function: Call "Player01_MaskMain" ()
+----------------+ Player_MaskMain: [X] Is Collision
+-----------------> Player_A_Physics: Set X_Float to Self.X_Float + sin(Self.Current_Angle)
+-----------------> Player_A_Physics: Set Y_Float to Self.Y_Float + cos(Self.Current_Angle)
+
+----------------+ Player_MaskMain: Is Collision
+-----------------> System: Stop loop
+
+--------+ Function: On "Player01_SlopeUp"
+------------+ System: Repeat Player_A_Physics.X_Speed_Max + int(abs(Player_A_Physics.X_Speed)+1) times
+-------------> Function: Call "Player01_MaskMain" ()
+-------------> Function: Call "Player01_MaskBottomDetector" ()
+----------------+ Player_MaskMain: Is Collision
+----------------+ Player_MaskBottomDetector: Is Collision
+-----------------> Player_A_Physics: Set X_Float to Self.X_Float - sin(Self.Current_Angle)
+-----------------> Player_A_Physics: Set Y_Float to Self.Y_Float - cos(Self.Current_Angle)
+
+----------------+ Player_MaskMain: [X] Is Collision
+-----------------> System: Stop loop
+
+----[Detecting Angle]
+--------[Find angle on edge]
+------------+ Player_A_Physics: Landing_Flag = 1
+-------------> Function: Call "Player01_Reposition" ()
+-------------> Player_MaskEdgeCheck: Set CountXPos to 0
+-------------> Player_MaskEdgeCheck: Set Height1 to -1
+-------------> Player_MaskEdgeCheck: Set Height2 to -1
+-------------> Player_MaskEdgeCheck: Set YPos to 0
+-------------> Player_MaskEdgeCheck: Set Slopes to 0
+-------------> Function: Call "Player01_EdgeFindX" ()
+
+------------+ Function: On "Player01_EdgeFindX"
+----------------+ System: Repeat 14 times
+-----------------> Player_MaskEdgeCheck: Set CountXPos to Self.CountXPos + 1
+-----------------> Player_MaskEdgeCheck: Set YPos to 0
+-----------------> Function: Call "Player01_EdgeFindY" ()
+
+------------+ Function: On "Player01_EdgeFindY"
+----------------+ System: Repeat 16 times
+-----------------> Function: Call "Player01_MaskEdgeAngle" ()
+--------------------+ Player_MaskEdgeCheck: [X] Is Collision
+---------------------> Player_MaskEdgeCheck: Add 1 to YPos
+
+--------------------+ Player_MaskEdgeCheck: Is Collision
+--------------------+ Player_MaskEdgeCheck: Height1 = -1
+---------------------> Player_MaskEdgeCheck: Set Height1 to Self.YPos
+---------------------> Player_MaskEdgeCheck: Set CountXPos to 0
+---------------------> Player_MaskEdgeCheck: Set YPos to 0
+
+--------------------+ Player_MaskEdgeCheck: Is Collision
+--------------------+ Player_MaskEdgeCheck: YPos ≠ Self.Height1
+--------------------+ Player_MaskEdgeCheck: Height1 ≠ -1
+--------------------+ Player_MaskEdgeCheck: Height2 = -1
+---------------------> Player_MaskEdgeCheck: Set Height2 to Self.YPos
+---------------------> Player_MaskEdgeCheck: Set CountXPos to 0
+---------------------> Player_MaskEdgeCheck: Set YPos to 0
+
+--------------------+ Player_MaskEdgeCheck: Is Collision
+--------------------+ Player_MaskEdgeCheck: YPos ≠ Self.Height1
+--------------------+ Player_MaskEdgeCheck: YPos ≠ Self.Height2
+--------------------+ Player_MaskEdgeCheck: Height1 ≠ -1
+--------------------+ Player_MaskEdgeCheck: Height2 ≠ -1
+---------------------> Player_MaskEdgeCheck: Set Slopes to 1
+
+------------+ Player_A_Physics: Landing_Flag = 1
+------------+ Player_MaskEdgeCheck: Slopes = 1
+------------+ Player_MaskLeftLine: Is Collision
+------------+ Player_MaskRightLine: [X] Is Collision
+-------------> Player_MaskLeftAngle: Set Distance to 0
+-------------> Player_MaskRightAngle: Set Distance to 0
+-------------> Function: Call "Player01_SetAngle" ()
+-------------> Player_A_Physics: Set Current_Angle to floor(180-angle(Player_MaskRightAngle.X,Player_MaskRightAngle.Y,Player_MaskLeftAngle.X,Player_MaskLeftAngle.Y))
+
+------------+ Player_A_Physics: Landing_Flag = 1
+------------+ Player_MaskEdgeCheck: Slopes = 1
+------------+ Player_MaskLeftLine: [X] Is Collision
+------------+ Player_MaskRightLine: Is Collision
+-------------> Player_MaskLeftAngle: Set Distance to 0
+-------------> Player_MaskRightAngle: Set Distance to 0
+-------------> Function: Call "Player01_SetAngle" ()
+-------------> Player_A_Physics: Set Current_Angle to floor(180-angle(Player_MaskRightAngle.X,Player_MaskRightAngle.Y,Player_MaskLeftAngle.X,Player_MaskLeftAngle.Y))
+
+--------+ Player_A_Physics: Is Ground
+---------> Player_MaskLeftAngle: Set Distance to 0
+---------> Player_MaskRightAngle: Set Distance to 0
+---------> Function: Call "Player01_SetAngle" ()
+
+--------+ Function: On "Player01_SetAngle"
+------------+ System: Repeat 60 times
+-------------> Function: Call "Player01_MaskAngle" ()
+-------------> Function: Call "Player01_MaskLine" ()
+----------------+ Player_MaskLeftAngle: [X] Is Collision
+-----------------> Player_MaskLeftAngle: Add 1 to Distance
+
+----------------+ Player_MaskRightAngle: [X] Is Collision
+-----------------> Player_MaskRightAngle: Add 1 to Distance
+
+--------+ Player_A_Physics: Is Ground
+--------+ Player_MaskLeftLine: Is Collision
+--------+ Player_MaskRightLine: Is Collision
+---------> Player_A_Physics: Set Current_Angle to round(floor(180 - angle(Player_MaskRightAngle.X,Player_MaskRightAngle.Y,Player_MaskLeftAngle.X,Player_MaskLeftAngle.Y)))
+
+----[Ceiling Landing]
+--------+ System: Every tick
+---------> Player_A_Physics: Set Ceiling_Landing_Flag to 0
+
+--------+ Player_MaskTopBig: Is Collision
+--------+ Player_A_Physics: Y_Speed > -1
+--------+ Player_A_Physics: Y_Speed < 0
+--------+ Player_A_Physics: [X] Is Ground
+--------+ Player_A_Physics: CurrentAnimation ≠ "Running"
+---------> Player_A_Physics: Set Y_Speed to 0
+
+--------+ Player_MaskTopBig: Is Collision
+--------+ Player_A_Physics: Y_Speed < -1
+--------+ Player_A_Physics: [X] Is Ground
+---------> Player_A_Physics: Set Y_Float to Self.Y_Float - 4
+---------> Player_A_Physics: Set Current_Angle to 180
+---------> Function: Call "Player01_CheckCeil" ()
+
+--------+ Function: On "Player01_CheckCeil"
+---------> Function: Call "Player01_MaskTop" ()
+---------> Function: Call "Player01_MaskAngle" ()
+---------> Function: Call "Player01_MaskLine" ()
+------------+ Player_A_Physics: Ceiling_Landing_Flag = 0
+-------------> Player_A_Physics: Set Ceiling_Landing_Flag to 1
+-------------> Function: Call "Player01_Reposition" ()
+
+------------+ Player_A_Physics: Ceiling_Landing_Flag = 1
+------------+ Player_MaskLeftLine: Is Collision
+------------+ Player_MaskRightLine: Is Collision
+-------------> Player_MaskLeftAngle: Set Distance to 0
+-------------> Player_MaskRightAngle: Set Distance to 0
+-------------> Function: Call "Player01_SetAngle" ()
+-------------> Player_A_Physics: Set Current_Angle to floor(180-angle(Player_MaskRightAngle.X,Player_MaskRightAngle.Y,Player_MaskLeftAngle.X,Player_MaskLeftAngle.Y))
+-------------> Player_A_Physics: Set Ceiling_Landing_Flag to 1
+
+------------+ Player_A_Physics: Ceiling_Landing_Flag = 1
+------------+ Player_A_Physics: Current_Angle > 170
+------------+ Player_A_Physics: Current_Angle < 190
+-------------> Function: Call "Player01_Reposition" ()
+-------------> Player_A_Physics: Set Y_Float to Self.Y_Float + 4
+-------------> Player_A_Physics: Set Current_Angle to 0
+-------------> Player_A_Physics: Set Y_Speed to 0
+-------------> Player_A_Physics: Set Ground to False
+-------------> Player_A_Physics: Set Ceiling_Landing_Flag to 0
+-------------> System: Stop loop
+
+------------+ Player_A_Physics: Ceiling_Landing_Flag = 1
+-------------> Player_A_Physics: Set Ceiling_Landing_Flag to 2
+
+------------+ Player_A_Physics: Ceiling_Landing_Flag = 2
+-------------> Player_A_Physics: Set X_Speed to Self.Y_Speed × sin(Self.Current_Angle) × -1.5
+-------------> Player_A_Physics: Set Y_Speed to 0
+-------------> Player_A_Physics: Set Ground to True
+-------------> Player_A_Physics: Set Ceiling_Landing_Flag to 0
+-------------> Function: Call "Player01_Reposition" ()
+-------------> System: Stop loop
+
+----[End Platform Movement]
+--------+ System: Every tick
+---------> Function: Call "Player01_Reposition" ()
+
+----[Input Movement]
+        // Set the slope value depending of the player state
+--------+ System: Every tick
+---------> Player_A_Physics: Set Slope to Player_A_Physics.Slope_Dcc_Factor
+------------+ Player_A_Physics: Action = 0.4
+----------------+ Player_A_Physics: X_Speed > 0
+--------------------+ Player_A_Physics: Current_Angle > 180
+---------------------> Player_A_Physics: Set Slope to Player_A_Physics.Slope_Dcc_Roll_Down
+
+--------------------+ Player_A_Physics: Current_Angle < 180
+---------------------> Player_A_Physics: Set Slope to Player_A_Physics.Slope_Dcc_Roll_Up
+
+----------------+ Player_A_Physics: X_Speed < 0
+--------------------+ Player_A_Physics: Current_Angle > 180
+---------------------> Player_A_Physics: Set Slope to Player_A_Physics.Slope_Dcc_Roll_Up
+
+--------------------+ Player_A_Physics: Current_Angle < 180
+---------------------> Player_A_Physics: Set Slope to Player_A_Physics.Slope_Dcc_Roll_Down
+
+--------+ Player_A_Physics: Is Ground
+---------> Player_A_Physics: Set X_Speed to Self.X_Speed - sin(Self.Current_Angle) × Self.Slope
+
+        // Falling Check Flag
+--------+ Player_A_Physics: Is Ground
+---------> Player_A_Physics: Set Falling_Check_Flag to True
+
+        // X SPEED MOVEMENT
+--------+ Player_A_Physics: X_Float ≤ Self.Bound_X
+--------+ Player_A_Physics: X_Speed < 0
+---------> Player_A_Physics: Set Bound_X to 16
+---------> Player_A_Physics: Set X_Float to Self.Bound_X
+---------> Player_A_Physics: Set X_Speed to 0
+
+--------+ Player_A_Physics: X_Float ≥ 16
+--------+ System: Layout = 2.5
+--------+ System: Trigger once
+---------> Player_A_Physics: Set Bound_X to 16
+
+--------+ Player_A_Physics: X_Float ≥ LayoutWidth + 32
+--------+ Player_A_Physics: X_Speed > 0
+---------> Player_A_Physics: Set X_Float to LayoutWidth + 32
+---------> Player_A_Physics: Set X_Speed to 0
+
+--------+ Player_A_Physics: Is AllowMovement
+            // On ground
+------------+ Player_A_Physics: Is Ground
+                // Basic Movement
+----------------+ Player_A_Physics: X_ControlLock ≤ 0
+                    // Acceleration
+--------------------+ Player_Input: InputRight = 1
+--------------------+ Player_MaskRightBig: [X] Is Collision
+--------------------+ Player_A_Physics: X_Float < LayoutWidth + 64
+--------------------+ Player_A_Physics: Action ≠ 0.4
+------------------------+ Player_A_Physics: X_Speed ≥ 0
+------------------------+ Player_A_Physics: X_Speed < Self.X_Speed_Top × 1
+-------------------------> Player_A_Physics: Set X_Speed to Self.X_Speed+Self.X_Speed_Add
+
+------------------------+ Player_A_Physics: X_Speed < 0
+-------------------------> Player_A_Physics: Set X_Speed to Self.X_Speed + Self.X_Speed_Add_Dcc
+
+--------------------+ Player_Input: InputLeft = 1
+--------------------+ Player_A_Physics: X_Float > Self.Bound_X
+--------------------+ Player_MaskLeftBig: [X] Is Collision
+--------------------+ Player_A_Physics: Action ≠ 0.4
+------------------------+ Player_A_Physics: X_Speed ≤ 0
+------------------------+ Player_A_Physics: X_Speed > Self.X_Speed_Top × -1
+-------------------------> Player_A_Physics: Set X_Speed to Self.X_Speed-Self.X_Speed_Add
+
+------------------------+ Player_A_Physics: X_Speed > 0
+-------------------------> Player_A_Physics: Set X_Speed to Self.X_Speed - Self.X_Speed_Add_Dcc
+
+                    // Deceleration
+--------------------+ Player_Input: InputRight = 0
+--------------------+ Player_Input: InputLeft = 0
+--------------------+ Player_A_Physics: X_Speed ≥ 0
+--------------------+ Player_A_Physics: Action ≠ 0.4
+---------------------> Player_A_Physics: Set X_Speed to max(Self.X_Speed - Self.X_Speed_Add, 0)
+
+--------------------+ Player_Input: InputRight = 0
+--------------------+ Player_Input: InputLeft = 0
+--------------------+ Player_A_Physics: X_Speed ≤ 0
+--------------------+ Player_A_Physics: Action ≠ 0.4
+---------------------> Player_A_Physics: Set X_Speed to min(Self.X_Speed + Self.X_Speed_Add, 0)
+
+--------------------+ Player_Input: InputRight = 1
+--------------------+ Player_Input: InputLeft = 1
+--------------------+ System: abs(Player_A_Physics.X_Speed) < Player_A_Physics.Slope
+--------------------+ Player_A_Physics: Action ≠ 0.4
+---------------------> Player_A_Physics: Set X_Speed to 0
+
+--------------------+ Player_Input: InputRight = 0
+--------------------+ Player_Input: InputLeft = 0
+--------------------+ System: abs(Player_A_Physics.X_Speed) < Player_A_Physics.Slope
+--------------------+ Player_A_Physics: Action ≠ 0.4
+---------------------> Player_A_Physics: Set X_Speed to min(Self.X_Speed + Self.X_Speed_Add, 0)
+
+                // Skidding
+----------------+ Player_Input: InputLeft = 1
+----------------+ Player_A_Physics: Skidding = 0
+----------------+ Player_A_Physics: X_Speed ≥ 2.0
+----------------+ Player_A_Physics: Action = 0
+-----------------> Player_A_Physics: Set Skidding to -1
+-----------------> Player_A_Physics: Set X_Speed to Self.X_Speed - (Self.X_Speed_Add ÷ 4.5)
+
+----------------+ Player_Input: InputRight = 1
+----------------+ Player_A_Physics: Skidding = 0
+----------------+ Player_A_Physics: X_Speed ≤ -2.0
+----------------+ Player_A_Physics: Action = 0
+-----------------> Player_A_Physics: Set Skidding to 1
+-----------------> Player_A_Physics: Set X_Speed to Self.X_Speed + (Self.X_Speed_Add ÷ 4.5)
+
+----------------+ Player_A_Physics: Skidding = 1
+----------------+ Player_A_Physics: X_Speed > 0
+-----------------> Player_A_Physics: Set Skidding to 0
+
+----------------+ Player_A_Physics: Skidding = -1
+----------------+ Player_A_Physics: X_Speed < 0
+-----------------> Player_A_Physics: Set Skidding to 0
+
+----------------+ Player_A_Physics: Skidding = 1
+----------------+ Player_Input: InputLeft = 1
+----------------+ Player_A_Physics: X_Speed < 0
+-----------------> Player_A_Physics: Set Skidding to 0
+
+----------------+ Player_A_Physics: Skidding = -1
+----------------+ Player_Input: InputRight = 1
+----------------+ Player_A_Physics: X_Speed > 0
+-----------------> Player_A_Physics: Set Skidding to 0
+
+----------------+ Player_A_Physics: Skidding ≠ 0
+----------------+ Player_Input: InputLeft = 0
+----------------+ Player_Input: InputRight = 0
+-----------------> Player_A_Physics: Set Skidding to 0
+
+----------------+ Player_A_Physics: Skidding ≠ 0
+----------------+ System: abs(Player_A_Physics.X_Speed) = 0
+-----------------> Player_A_Physics: Set Skidding to 0
+
+----------------+ Player_A_Physics: Skidding ≠ 0
+----------------+ Player_A_Physics: [X] Is Ground
+-----------------> Player_A_Physics: Set Skidding to 0
+
+----------------+ Player_A_Physics: Skidding ≠ 0
+----------------+ Player_A_Physics: Action ≠ 0
+-----------------> Player_A_Physics: Set Skidding to 0
+
+----------------+ Player_A_Physics: Skidding ≠ 0
+----------------+ System: Trigger once
+-----------------> Audio: Stop "Player Skidding"
+-----------------> Audio: Play _char_skidding.m4a not looping at volume 0 dB (stereo pan 0, tag "Player Skidding")
+
+----------------+ Player_A_Physics: Skidding = 0
+-----------------> Player_A_Physics: Set Skidding_Effect_Timer to 0
+
+----------------+ Player_A_Physics: Skidding ≠ 0
+----------------+ System: Trigger once
+-----------------> System: Create object Effect_SkiddingDust on layer skinToco.LayerNumber at (Player_MaskBottomDetector.X, Player_MaskBottomDetector.Y + 13), create hierarchy: False, template: ""
+
+----------------+ Player_A_Physics: Skidding ≠ 0
+-----------------> Player_A_Physics: Set Skidding_Effect_Timer to Self.Skidding_Effect_Timer + 1
+
+----------------+ Player_A_Physics: Skidding_Effect_Timer ≥ 7
+-----------------> System: Create object Effect_SkiddingDust on layer skinToco.LayerNumber at (Player_MaskBottomDetector.X, Player_MaskBottomDetector.Y + 13), create hierarchy: False, template: ""
+-----------------> Player_A_Physics: Set Skidding_Effect_Timer to 0
+
+                // 0.5 - Pushing
+----------------+ Player_A_Physics: Action = 0
+----------------+ Player_Input: InputRight = 1
+----------------+ Player_MaskRightBig: Is Collision
+-----------------> Player_A_Physics: Set Action to 0.5
+-----------------> Player_A_Physics: Set Character_Direction to 1
+
+----------------+ Player_A_Physics: Action = 0.5
+----------------+ Player_A_Physics: Character_Direction = 1
+----------------+ Player_Input: InputRight = 0
+----------------+ Player_MaskRightBig: Is Collision
+-----------------> Player_A_Physics: Set Action to 0
+
+----------------+ Player_A_Physics: Action = 0
+----------------+ Player_Input: InputLeft = 1
+----------------+ Player_MaskLeftBig: Is Collision
+-----------------> Player_A_Physics: Set Action to 0.5
+-----------------> Player_A_Physics: Set Character_Direction to -1
+
+----------------+ Player_A_Physics: Action = 0.5
+----------------+ Player_A_Physics: Character_Direction = -1
+----------------+ Player_Input: InputLeft = 0
+----------------+ Player_MaskLeftBig: Is Collision
+-----------------> Player_A_Physics: Set Action to 0
+
+----------------+ Player_A_Physics: Action = 0.5
+----------------+ Player_MaskRightBig: [X] Is Collision
+----------------+ Player_MaskLeftBig: [X] Is Collision
+-----------------> Player_A_Physics: Set Action to 0
+
+----------------+ Player_A_Physics: Action = 0.5
+----------------+ Player_A_Physics: Character_Direction = 1
+----------------+ Player_Input: InputRight = 1
+----------------+ Player_MaskRightBig: [X] Is Collision
+----------------+ Player_MaskLeftBig: [X] Is Collision
+-----------------> Player_A_Physics: Set Action to 0
+
+----------------+ Player_A_Physics: Action = 0.5
+----------------+ Player_A_Physics: Character_Direction = -1
+----------------+ Player_Input: InputLeft = 1
+----------------+ Player_MaskRightBig: [X] Is Collision
+----------------+ Player_MaskLeftBig: [X] Is Collision
+-----------------> Player_A_Physics: Set Action to 0
+
+            // On !ground
+------------+ Player_A_Physics: [X] Is Ground
+                // Acceleration
+----------------+ Player_Input: InputRight = 1
+----------------+ Player_MaskRightBig: [X] Is Collision
+----------------+ Player_A_Physics: X_Speed < Self.X_Speed_Top × 1
+-----------------> Player_A_Physics: Set X_Speed to Self.X_Speed + Self.X_Speed_Add_Air
+
+----------------+ Player_Input: InputLeft = 1
+----------------+ Player_MaskLeftBig: [X] Is Collision
+----------------+ Player_A_Physics: X_Speed > Self.X_Speed_Top × -1
+-----------------> Player_A_Physics: Set X_Speed to Self.X_Speed - Self.X_Speed_Add_Air
+
+                // Air Drag
+----------------+ Player_A_Physics: Y_Speed < 0
+----------------+ Player_A_Physics: Y_Speed > -4
+----------------+ System: abs(Player_A_Physics.X_Speed) ≥ Player_A_Physics.Slope_Dcc_Factor
+-----------------> Player_A_Physics: Set X_Speed to Self.X_Speed - ( (Self.X_Speed ÷ 0.125 ) ÷ 256 )
+
+        // Landing Speed
+--------+ Player_A_Physics: Landing_Flag = 1
+---------> Function: Call "Player01_LandingSpeed" ()
+
+--------+ Function: On "Player01_LandingSpeed"
+---------> Player_A_Physics: Set X_Speed to Self.X_Speed - ( sin(Self.Current_Angle) × Self.Y_Speed ) × 0.85
+---------> Player_A_Physics: Set Y_Speed to 0
+
+        // Full Contact on Wall
+--------+ Player_A_Physics: X_Speed > 0
+--------+ Player_MaskRightBig: Is Collision
+---------> Player_A_Physics: Set X_Speed to 0
+
+--------+ Player_A_Physics: X_Speed < 0
+--------+ Player_MaskLeftBig: Is Collision
+---------> Player_A_Physics: Set X_Speed to 0
+
+        // Skidding Effect
+--------+ System: Every tick
+---------> Effect_SkiddingDust: Set animation speed to 25
+------------+ Effect_SkiddingDust: Animation frame ≥ 6
+-------------> Effect_SkiddingDust: Destroy

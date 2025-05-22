@@ -1,0 +1,36 @@
+{
+	"name": "Toco the Hedgehog Prototype",
+	"short_name": "Toco the Hedgehog Prototype",
+	"description": "The prototype for Toco the hedgehog.",
+	"start_url": "index.html",
+	"display": "fullscreen",
+	"orientation": "landscape",
+	"background_color": "#000000",
+	"icons": [
+		{
+			"src": "icons/TTH Icon.png",
+			"sizes": "480x480",
+			"type": "image/png"
+		},
+		{
+			"src": "icons/T Icon 2.png",
+			"sizes": "120x120",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	],
+	"screenshots": [
+		{
+			"src": "icons/Snapshot - 2025-03-07T115656.191.png",
+			"sizes": "1272x720",
+			"type": "image/png",
+			"form_factor": "wide"
+		},
+		{
+			"src": "icons/Snapshot - 2025-03-07T115204.009.png",
+			"sizes": "1272x720",
+			"type": "image/png",
+			"form_factor": "wide"
+		}
+	]
+}
