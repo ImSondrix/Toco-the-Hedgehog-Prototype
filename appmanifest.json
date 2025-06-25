@@ -8,15 +8,9 @@
 	"background_color": "#000000",
 	"icons": [
 		{
-			"src": "icons/TTH Icon.png",
-			"sizes": "480x480",
+			"src": "icons/Desktop Icon.png",
+			"sizes": "16x16",
 			"type": "image/png"
-		},
-		{
-			"src": "icons/T Icon 2.png",
-			"sizes": "120x120",
-			"type": "image/png",
-			"purpose": "maskable"
 		}
 	],
 	"screenshots": [
