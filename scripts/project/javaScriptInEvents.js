@@ -2,12 +2,12 @@
 
 const scriptsInEvents = {
 
-	async ["Menu&OptionsScreen_Event1"](runtime, localVars)
+	async LayoutScreen_Event1(runtime, localVars)
 	{
 		
 	},
 
-	async LayoutScreen_Event1(runtime, localVars)
+	async ["Menu&OptionsScreen_Event1"](runtime, localVars)
 	{
 		
 	},
